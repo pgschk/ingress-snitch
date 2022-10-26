@@ -4,7 +4,7 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 COPY *.go ./
-COPY templates ./
+COPY templates /
 RUN go build -o /ingress-snitch
 EXPOSE 8080
 CMD [ "/ingress-snitch" ]
