@@ -41,7 +41,7 @@ func getArticleByID(id int) (*article, error) {
 
 func getAllPods() {
 	fmt.Printf("Test")
-	podName := "pasty-spa-7999b9dff5-fk9"
+	podName := "pasty-spa-557d94bd4-d6v6b"
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
