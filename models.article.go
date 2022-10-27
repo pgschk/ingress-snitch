@@ -41,6 +41,7 @@ func getArticleByID(id int) (*article, error) {
 
 func getAllPods() {
 	fmt.Printf("Test")
+	podName := "pasty-spa-7999b9dff5-fk9"
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
@@ -61,14 +62,14 @@ func getAllPods() {
 	// Examples for error handling:
 	// - Use helper functions e.g. errors.IsNotFound()
 	// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
-	_, err = clientset.CoreV1().Pods("pasty-staging").Get(context.TODO(), "pasty-spa-7999b9dff5-fk9z6", metav1.GetOptions{})
+	_, err = clientset.CoreV1().Pods("pasty-staging").Get(context.TODO(), podName, metav1.GetOptions{})
 	if k8serrors.IsNotFound(err) {
-		fmt.Printf("Pod pasty-spa-7999b9dff5-fk9z6 not found in pasty-staging namespace\n")
+		fmt.Printf("Pod %s not found in pasty-staging namespace\n", podName)
 	} else if statusError, isStatus := err.(*k8serrors.StatusError); isStatus {
 		fmt.Printf("Error getting pod %v\n", statusError.ErrStatus.Message)
 	} else if err != nil {
 		panic(err.Error())
 	} else {
-		fmt.Printf("Found pasty-spa-7999b9dff5-fk9z6 pod in pasty-staging namespace\n")
+		fmt.Printf("Found %s pod in pasty-staging namespace\n", podName)
 	}
 }
