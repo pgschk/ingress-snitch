@@ -50,27 +50,25 @@ func getAllPods() {
 	if err != nil {
 		panic(err.Error())
 	}
-	for {
-		// get pods in all the namespaces by omitting namespace
-		// Or specify namespace to get pods in particular namespace
-		pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			panic(err.Error())
-		}
-		fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
+	// get pods in all the namespaces by omitting namespace
+	// Or specify namespace to get pods in particular namespace
+	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
 
-		// Examples for error handling:
-		// - Use helper functions e.g. errors.IsNotFound()
-		// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
-		_, err = clientset.CoreV1().Pods("pasty-staging").Get(context.TODO(), "pasty-spa-7999b9dff5-fk9z6", metav1.GetOptions{})
-		if k8serrors.IsNotFound(err) {
-			fmt.Printf("Pod pasty-spa-7999b9dff5-fk9z6 not found in pasty-staging namespace\n")
-		} else if statusError, isStatus := err.(*k8serrors.StatusError); isStatus {
-			fmt.Printf("Error getting pod %v\n", statusError.ErrStatus.Message)
-		} else if err != nil {
-			panic(err.Error())
-		} else {
-			fmt.Printf("Found pasty-spa-7999b9dff5-fk9z6 pod in pasty-staging namespace\n")
-		}
+	// Examples for error handling:
+	// - Use helper functions e.g. errors.IsNotFound()
+	// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
+	_, err = clientset.CoreV1().Pods("pasty-staging").Get(context.TODO(), "pasty-spa-7999b9dff5-fk9z6", metav1.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		fmt.Printf("Pod pasty-spa-7999b9dff5-fk9z6 not found in pasty-staging namespace\n")
+	} else if statusError, isStatus := err.(*k8serrors.StatusError); isStatus {
+		fmt.Printf("Error getting pod %v\n", statusError.ErrStatus.Message)
+	} else if err != nil {
+		panic(err.Error())
+	} else {
+		fmt.Printf("Found pasty-spa-7999b9dff5-fk9z6 pod in pasty-staging namespace\n")
 	}
 }
