@@ -17,7 +17,7 @@ RUN go get -d -v
 
 # Build the binary.
 #RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o /go/main .
-RUN go build -o /go/main
+RUN go build -o /app/ingress-snitch
 
 ############################
 # STEP 2 build a small image
@@ -27,14 +27,14 @@ FROM alpine:3
 WORKDIR /
 
 # Copy our static executable.
-COPY --from=builder /go/main /go/main
-COPY templates /go/templates
+COPY --from=builder /app/ingress-snitch /app/ingress-snitch
+COPY templates /app/templates
 
 ENV PORT 8080
-ENV GIN_MODE release
 EXPOSE 8080
+ENV GIN_MODE release
 
-WORKDIR /go
+WORKDIR /app
 
 # Run the Go Gin binary.
-ENTRYPOINT ["/go/main"]
+ENTRYPOINT ["/app/ingress-snitch"]
