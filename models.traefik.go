@@ -157,6 +157,10 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	for _, v := range pathMatches {
 		rulePaths = append(rulePaths, v[1])
 	}
+	// if no paths found in rule, we add "/" as a path
+	if len(rulePaths) == 0 {
+		rulePaths = append(rulePaths, "/")
+	}
 	for _, v := range ruleHostnames {
 		router.URLs = append(router.URLs, entryPointProto+v+":"+entryPointPort+rulePaths[0])
 	}
