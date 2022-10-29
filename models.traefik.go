@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 )
 
 type TraefikRouter struct {
@@ -21,14 +22,11 @@ type TraefikRouter struct {
 	TLS         struct {
 		Options string `json:"options"`
 	} `json:"tls,omitempty"`
+	URLs []string
 }
 
 var TraefikRouterList = []TraefikRouter{}
 var traefikApiUrl string
-
-// type TraefikRouterResponse2 struct {
-// 	Router []TraefikRouter `json:"array"`
-// }
 
 func getTraefikRouteByName(name string) (*TraefikRouter, error) {
 	for _, a := range TraefikRouterList {
@@ -38,41 +36,6 @@ func getTraefikRouteByName(name string) (*TraefikRouter, error) {
 	}
 	return nil, errors.New("Traefik Router not found")
 }
-
-// func getAllPods() {
-// 	fmt.Printf("Test")
-// 	podName := "pasty-spa-557d94bd4-d6v6b"
-// 	config, err := rest.InClusterConfig()
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	// creates the clientset
-// 	clientset, err := kubernetes.NewForConfig(config)
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	// get pods in all the namespaces by omitting namespace
-// 	// Or specify namespace to get pods in particular namespace
-// 	pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
-// 	if err != nil {
-// 		panic(err.Error())
-// 	}
-// 	fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-
-// 	// Examples for error handling:
-// 	// - Use helper functions e.g. errors.IsNotFound()
-// 	// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
-// 	_, err = clientset.CoreV1().Pods("pasty-staging").Get(context.TODO(), podName, metav1.GetOptions{})
-// 	if k8serrors.IsNotFound(err) {
-// 		fmt.Printf("Pod %s not found in pasty-staging namespace\n", podName)
-// 	} else if statusError, isStatus := err.(*k8serrors.StatusError); isStatus {
-// 		fmt.Printf("Error getting pod %v\n", statusError.ErrStatus.Message)
-// 	} else if err != nil {
-// 		panic(err.Error())
-// 	} else {
-// 		fmt.Printf("Found %s pod in pasty-staging namespace\n", podName)
-// 	}
-// }
 
 func getAllTraefikRouters() ([]TraefikRouter, error) {
 
@@ -89,10 +52,38 @@ func getAllTraefikRouters() ([]TraefikRouter, error) {
 		return nil, err
 	}
 	var responseObject []TraefikRouter
+	var routers []TraefikRouter
 	json.Unmarshal(responseData, &responseObject)
 	responseLength := len(responseObject)
 	fmt.Printf("Received %d routers from Traefik API\n", responseLength)
-	return responseObject, nil
+	for i := 0; i < responseLength; i++ {
+		routers = append(routers, parseTraefikRouterUrls(responseObject[i]))
+	}
+	return routers, nil
+}
+
+func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
+	var ruleHostnames []string
+	var rulePaths []string
+	rule := router.Rule
+	hostRegexp := regexp.MustCompile(`Host\(\140([^\140]*)\140\)`)
+	hostMatches := hostRegexp.FindAllStringSubmatch(rule, -1)
+	pathRegexp := regexp.MustCompile(`Path(?:Prefix)?\(\140([^\140]*)\140\)`)
+	pathMatches := pathRegexp.FindAllStringSubmatch(rule, -1)
+	for _, v := range hostMatches {
+		ruleHostnames = append(ruleHostnames, v[1])
+	}
+	for _, v := range pathMatches {
+		rulePaths = append(rulePaths, v[1])
+	}
+	for _, v := range ruleHostnames {
+		router.URLs = append(router.URLs, "http://"+v+rulePaths[0])
+	}
+	if len(router.URLs) == 0 {
+		router.URLs = append(router.URLs, "Unknown")
+	}
+	fmt.Println(router.URLs)
+	return router
 }
 
 func populizeTraefikRouters(url string) error {

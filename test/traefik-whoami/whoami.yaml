@@ -45,7 +45,12 @@ spec:
     - websecure
   routes:
     - kind: Rule
-      match: Host(`localhost`) && PathPrefix(`/`)
+      match: (Host(`localhost`) || Host(`whoami`)) && PathPrefix(`/`)
+      services:
+        - name: whoami
+          port: 80
+    - kind: Rule
+      match: (Host(`localhost`) || Host(`whoami`)) && PathPrefix(`/whoami`)
       services:
         - name: whoami
           port: 80
