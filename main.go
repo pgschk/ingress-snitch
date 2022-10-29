@@ -17,9 +17,9 @@ func main() {
 	if ok {
 		traefikApiUrl = traefikApiUrlFromEnv
 	}
-	err := populizeTraefikRouters(traefikApiUrl)
+	err := populizeTraefik(traefikApiUrl)
 	if err != nil {
-		log.Fatalf("Fatal Error: (while loading Traefik Routers) %v\n", err)
+		log.Fatalf("Fatal Error: (while loading from Traefik API) %v\n", err)
 	}
 	// Set the router as the default one provided by Gin
 	router = gin.Default()

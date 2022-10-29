@@ -11,7 +11,7 @@ import (
 )
 
 type TraefikRouter struct {
-	EntryPoints []string `json:"entryPoints"`
+	EntryPoints []string `json:"EntryPoints"`
 	Service     string   `json:"service"`
 	Rule        string   `json:"rule"`
 	Priority    int64    `json:"priority,omitempty"`
@@ -25,7 +25,37 @@ type TraefikRouter struct {
 	URLs []string
 }
 
+type TraefikEntryPoint struct {
+	Address   string `json:"address"`
+	Transport struct {
+		LifeCycle struct {
+			GraceTimeOut string `json:"graceTimeOut"`
+		} `json:"lifeCycle"`
+		RespondingTimeouts struct {
+			IdleTimeout string `json:"idleTimeout"`
+		} `json:"respondingTimeouts"`
+	} `json:"transport"`
+	ForwardedHeaders struct {
+	} `json:"forwardedHeaders"`
+	HTTP struct {
+	} `json:"http,omitempty"`
+	HTTP2 struct {
+		MaxConcurrentStreams int `json:"maxConcurrentStreams"`
+	} `json:"http2"`
+	UDP struct {
+		Timeout string `json:"timeout"`
+	} `json:"udp"`
+	Name  string `json:"name"`
+	HTTP0 struct {
+		TLS struct {
+		} `json:"tls"`
+	} `json:"http,omitempty"`
+	Protocol string
+	Port     string
+}
+
 var TraefikRouterList = []TraefikRouter{}
+var TraefikEntryPointList = []TraefikEntryPoint{}
 var traefikApiUrl string
 
 func getTraefikRouteByName(name string) (*TraefikRouter, error) {
@@ -35,6 +65,14 @@ func getTraefikRouteByName(name string) (*TraefikRouter, error) {
 		}
 	}
 	return nil, errors.New("Traefik Router not found")
+}
+func getTraefikEntryPointByName(name string) (*TraefikEntryPoint, error) {
+	for _, a := range TraefikEntryPointList {
+		if a.Name == name {
+			return &a, nil
+		}
+	}
+	return nil, errors.New("Traefik EntryPoint not found")
 }
 
 func getAllTraefikRouters() ([]TraefikRouter, error) {
@@ -62,10 +100,51 @@ func getAllTraefikRouters() ([]TraefikRouter, error) {
 	return routers, nil
 }
 
+func getAllTraefikEntryPoints() ([]TraefikEntryPoint, error) {
+
+	response, err := http.Get(traefikApiUrl + "/entrypoints")
+
+	if err != nil {
+		fmt.Print(err.Error())
+		return nil, err
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+		return nil, err
+	}
+	var responseObject []TraefikEntryPoint
+	var EntryPoints []TraefikEntryPoint
+	json.Unmarshal(responseData, &responseObject)
+	responseLength := len(responseObject)
+	fmt.Printf("Received %d EntryPoints from Traefik API\n", responseLength)
+	for i := 0; i < responseLength; i++ {
+		EntryPoints = append(EntryPoints, parseTraefikEntryPoint(responseObject[i]))
+	}
+	fmt.Println(EntryPoints)
+	return EntryPoints, nil
+}
+
 func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	var ruleHostnames []string
 	var rulePaths []string
 	rule := router.Rule
+
+	var entryPointPort string
+	for _, routerEntryPointName := range router.EntryPoints {
+		entryPoint, err := getTraefikEntryPointByName(routerEntryPointName)
+		if err != nil {
+			log.Printf("Router %s uses unknown Entrypoint: %s\n", router.Name, routerEntryPointName)
+			continue
+		}
+		if entryPoint.Protocol == "tcp" {
+			entryPointPort = entryPoint.Port
+		}
+	}
+	if entryPointPort == "" {
+		log.Printf("Did not find valid EntryPoint port for %s", router.Name)
+	}
 	hostRegexp := regexp.MustCompile(`Host\(\140([^\140]*)\140\)`)
 	hostMatches := hostRegexp.FindAllStringSubmatch(rule, -1)
 	pathRegexp := regexp.MustCompile(`Path(?:Prefix)?\(\140([^\140]*)\140\)`)
@@ -77,7 +156,7 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 		rulePaths = append(rulePaths, v[1])
 	}
 	for _, v := range ruleHostnames {
-		router.URLs = append(router.URLs, "http://"+v+rulePaths[0])
+		router.URLs = append(router.URLs, "http://"+v+":"+entryPointPort+rulePaths[0])
 	}
 	if len(router.URLs) == 0 {
 		router.URLs = append(router.URLs, "Unknown")
@@ -86,11 +165,22 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	return router
 }
 
-func populizeTraefikRouters(url string) error {
-	err := errors.New("")
+func parseTraefikEntryPoint(EntryPoint TraefikEntryPoint) TraefikEntryPoint {
+	portRegexp := regexp.MustCompile(`:(\d+)\/(tcp|udp)`)
+	portMatches := portRegexp.FindStringSubmatch(EntryPoint.Address)
+	if portMatches[2] == "tcp" || portMatches[2] == "udp" {
+		EntryPoint.Port = portMatches[1]
+		EntryPoint.Protocol = portMatches[2]
+	}
+	return EntryPoint
+}
+
+func populizeTraefik(url string) error {
+	err, err2 := errors.New(""), errors.New("")
 	traefikApiUrl = url
+	TraefikEntryPointList, err2 = getAllTraefikEntryPoints()
 	TraefikRouterList, err = getAllTraefikRouters()
-	if err != nil {
+	if err != nil || err2 != nil {
 		return err
 	}
 	return nil
