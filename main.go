@@ -1,7 +1,9 @@
 package main
 
 import (
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -9,7 +11,16 @@ import (
 var router *gin.Engine
 
 func main() {
-
+	//populize Traefik Routers
+	traefikApiUrl := "http://traefik.traefik:9000/api"
+	traefikApiUrlFromEnv, ok := os.LookupEnv("TRAEFIK_API_URL")
+	if ok {
+		traefikApiUrl = traefikApiUrlFromEnv
+	}
+	err := populizeTraefikRouters(traefikApiUrl)
+	if err != nil {
+		log.Fatalf("Fatal Error: (while loading Traefik Routers) %v\n", err)
+	}
 	// Set the router as the default one provided by Gin
 	router = gin.Default()
 
@@ -22,8 +33,6 @@ func main() {
 
 	// Start serving the application
 	router.Run()
-
-	getAllPods()
 }
 
 // Render one of HTML, JSON or CSV based on the 'Accept' header of the request

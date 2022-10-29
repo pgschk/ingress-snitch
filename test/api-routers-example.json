@@ -1,0 +1,59 @@
+[
+  {
+    "entryPoints": [
+      "traefik"
+    ],
+    "service": "ping@internal",
+    "rule": "PathPrefix(`/ping`)",
+    "priority": 2147483647,
+    "status": "enabled",
+    "using": [
+      "traefik"
+    ],
+    "name": "ping@internal",
+    "provider": "internal"
+  },
+  {
+    "entryPoints": [
+      "metrics"
+    ],
+    "service": "prometheus@internal",
+    "rule": "PathPrefix(`/metrics`)",
+    "priority": 2147483647,
+    "status": "enabled",
+    "using": [
+      "metrics"
+    ],
+    "name": "prometheus@internal",
+    "provider": "internal"
+  },
+  {
+    "entryPoints": [
+      "traefik"
+    ],
+    "service": "api@internal",
+    "rule": "PathPrefix(`/dashboard`) || PathPrefix(`/api`)",
+    "status": "enabled",
+    "using": [
+      "traefik"
+    ],
+    "name": "traefik-traefik-dashboard-d012b7f875133eeab4e5@kubernetescrd",
+    "provider": "kubernetescrd"
+  },
+  {
+    "entryPoints": [
+      "websecure"
+    ],
+    "service": "traefik-whoami-e10968545cd46d5915ee",
+    "rule": "Host(`localhost`) && PathPrefix(`/`)",
+    "tls": {
+      "options": "default"
+    },
+    "status": "enabled",
+    "using": [
+      "websecure"
+    ],
+    "name": "traefik-whoami-e10968545cd46d5915ee@kubernetescrd",
+    "provider": "kubernetescrd"
+  }
+]
