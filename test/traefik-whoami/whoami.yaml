@@ -50,7 +50,7 @@ spec:
         - name: whoami
           port: 80
     - kind: Rule
-      match: (Host(`localhost`) || Host(`whoami`)) && PathPrefix(`/whoami`)
+      match: (Host(`localhost` || `whoami`) && PathPrefix(`/whoami`)
       services:
         - name: whoami
           port: 80

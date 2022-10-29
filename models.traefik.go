@@ -147,12 +147,18 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	if entryPointPort == "" {
 		log.Printf("Did not find valid EntryPoint port for %s", router.Name)
 	}
-	hostRegexp := regexp.MustCompile(`Host\(\140([^\140]*)\140\)`)
+	hostRegexp := regexp.MustCompile(`Host\(\140([^\140]*)\140(?:\s*\174{2}\s*\140*([^\140]*)\140)*`)
 	hostMatches := hostRegexp.FindAllStringSubmatch(rule, -1)
+	fmt.Printf("%+v\n", hostMatches)
 	pathRegexp := regexp.MustCompile(`Path(?:Prefix)?\(\140([^\140]*)\140\)`)
 	pathMatches := pathRegexp.FindAllStringSubmatch(rule, -1)
 	for _, v := range hostMatches {
-		ruleHostnames = append(ruleHostnames, v[1])
+		for i, b := range v {
+			if i == 0 || b == "" {
+				continue
+			}
+			ruleHostnames = append(ruleHostnames, b)
+		}
 	}
 	for _, v := range pathMatches {
 		rulePaths = append(rulePaths, v[1])
