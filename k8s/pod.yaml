@@ -5,9 +5,7 @@ metadata:
 spec:
   containers:
   - name: snitch
-    image: ingress-snitch:latest
-    imagePullPolicy: Never
+    image: quay.io/pgschk/ingress-snitch:latest
     env:
     - name: TRAEFIK_API_URL
-      value: "http://traefik.traefik:9000/api"
-  #serviceAccountName: snitch
+      value: "http://traefik.k8s0.i.blafaselblub.net:9000/api"
