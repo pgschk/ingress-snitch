@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 type TraefikRouter struct {
@@ -147,9 +148,9 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	if entryPointPort == "" {
 		log.Printf("Did not find valid EntryPoint port for %s", router.Name)
 	}
-	hostRegexp := regexp.MustCompile(`Host\(\140([^\140]*)\140(?:\s*\174{2}\s*\140*([^\140]*)\140)*`)
+	// hostRegexp := regexp.MustCompile(`Host\(\140([^\140]*)\140(?:\s*\174{2}\s*\140*([^\140]*)\140)*`)
+	hostRegexp := regexp.MustCompile(`Host\(\s*\140([^\051]*)`)
 	hostMatches := hostRegexp.FindAllStringSubmatch(rule, -1)
-	fmt.Printf("%+v\n", hostMatches)
 	pathRegexp := regexp.MustCompile(`Path(?:Prefix)?\(\140([^\140]*)\140\)`)
 	pathMatches := pathRegexp.FindAllStringSubmatch(rule, -1)
 	for _, v := range hostMatches {
@@ -157,7 +158,13 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 			if i == 0 || b == "" {
 				continue
 			}
-			ruleHostnames = append(ruleHostnames, b)
+			b = strings.ReplaceAll(b, " ", "")
+			b = strings.ReplaceAll(b, "`", "")
+			splitRegexp := regexp.MustCompile(`\174{2}|,`)
+			hostnames := splitRegexp.Split(b, -1)
+			for _, hostname := range hostnames {
+				ruleHostnames = append(ruleHostnames, hostname)
+			}
 		}
 	}
 	for _, v := range pathMatches {
