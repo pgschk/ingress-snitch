@@ -8,4 +8,13 @@ spec:
     image: quay.io/pgschk/ingress-snitch:latest
     env:
     - name: TRAEFIK_API_URL
-      value: "http://traefik.k8s0.i.blafaselblub.net:9000/api"
+      value: "http://traefik.traefik:9000/api"
+    - name: TRAEFIK_NAMESPACE
+      value: traefik
+    resources:
+      requests:
+        cpu: 20m
+        memory: 20Mi
+      limits:
+        cpu: 100m
+        memory: 50Mi
