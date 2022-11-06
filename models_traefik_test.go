@@ -2,8 +2,9 @@ package main
 
 import "testing"
 
-// Test the function that fetches all articles
-func TestGetAllArticles(t *testing.T) {
+// Test the function that fetches all Traefik routers
+// Does not work yet, needs the API URL
+func TestGetAllRouters(t *testing.T) {
 	alist, err := getAllTraefikRouters()
 	if err != nil {
 		t.Fail()

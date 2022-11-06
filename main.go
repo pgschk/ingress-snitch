@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/joho/godotenv/autoload"
 )
 
 var router *gin.Engine
@@ -21,11 +22,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Fatal Error: (while loading from Traefik API) %v\n", err)
 	}
-	// Set the router as the default one provided by Gin
+
 	router = gin.Default()
 
-	// Process the templates at the start so that they don't have to be loaded
-	// from the disk again. This makes serving HTML pages very fast.
+	// load templates
 	router.LoadHTMLGlob("templates/*")
 
 	// Initialize the routes
@@ -35,9 +35,8 @@ func main() {
 	router.Run()
 }
 
-// Render one of HTML, JSON or CSV based on the 'Accept' header of the request
-// If the header doesn't specify this, HTML is rendered, provided that
-// the template name is present
+// render based in 'Accept' HTTP header
+// if no header is provided HTML will be rendered using a template
 func render(c *gin.Context, data gin.H, templateName string) {
 
 	switch c.Request.Header.Get("Accept") {
