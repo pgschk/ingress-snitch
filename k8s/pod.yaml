@@ -18,3 +18,4 @@ spec:
       limits:
         cpu: 100m
         memory: 50Mi
+  serviceAccountName: snitch
