@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -10,15 +11,35 @@ import (
 )
 
 var router *gin.Engine
+var TraefikApiUrl string = "http://traefik.traefik:9000/api"
+var TraefikNamespace string = ""
+var TraefikServiceName string = "traefik"
+
+func init() {
+	// get various envs
+	traefikApiUrlFromEnv, apiOk := os.LookupEnv("TRAEFIK_API_URL")
+	if apiOk {
+		TraefikApiUrl = traefikApiUrlFromEnv
+	}
+
+	traefikServiceNameFromEnv, nameOk := os.LookupEnv("TRAEFIK_SERVICE_NAME")
+	if nameOk {
+		TraefikServiceName = traefikServiceNameFromEnv
+	}
+
+	traefikNamespaceFromEnv, nsOk := os.LookupEnv("TRAEFIK_NAMESPACE")
+	if nsOk {
+		TraefikNamespace = traefikNamespaceFromEnv
+	}
+	fmt.Printf("Traefik Namespace: \"%s\"\n", TraefikNamespace)
+}
 
 func main() {
+
+	GetTraefikService()
+
 	//populize Traefik Routers
-	traefikApiUrl := "http://traefik.traefik:9000/api"
-	traefikApiUrlFromEnv, ok := os.LookupEnv("TRAEFIK_API_URL")
-	if ok {
-		traefikApiUrl = traefikApiUrlFromEnv
-	}
-	err := populizeTraefik(traefikApiUrl)
+	err := populizeTraefik(TraefikApiUrl)
 	if err != nil {
 		log.Fatalf("Fatal Error: (while loading from Traefik API) %v\n", err)
 	}

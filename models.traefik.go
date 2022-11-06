@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -52,9 +53,10 @@ type TraefikEntryPoint struct {
 	UDP struct {
 		Timeout string `json:"timeout"`
 	} `json:"udp"`
-	Name     string `json:"name"`
-	Protocol string
-	Port     string
+	Name        string `json:"name"`
+	Protocol    string
+	Port        string
+	ServicePort uint
 }
 
 // TraefikRouterList holds a list if all TraefikRouter retrieved from Traefik API
@@ -165,7 +167,7 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	var rulePaths []string
 	rule := router.Rule
 
-	var entryPointPort string
+	var entryPointPort uint
 	entryPointProto := "http://"
 
 	for _, routerEntryPointName := range router.EntryPoints {
@@ -183,7 +185,7 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 			// set the port to use to this entrypoints port
 			// this is often wrong, as a Kubernetes service
 			// will do port translation
-			entryPointPort = entryPoint.Port
+			entryPointPort = entryPoint.ServicePort
 
 			// if there is TLS configuration associated with
 			// this entrypoint, set the entrypoint url prefix to https://
@@ -194,7 +196,7 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 		}
 	}
 
-	if entryPointPort == "" {
+	if entryPointPort == 0 {
 		log.Printf("Did not find valid EntryPoint port for %s", router.Name)
 	}
 
@@ -245,7 +247,7 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 		// - the hostname
 		// - the entryPointPort
 		// - the first matching path
-		router.URLs = append(router.URLs, entryPointProto+hostname+":"+entryPointPort+rulePaths[0])
+		router.URLs = append(router.URLs, entryPointProto+hostname+":"+strconv.FormatUint(uint64(entryPointPort), 10)+rulePaths[0])
 	}
 
 	// if there was no URL generated for this router it is most likely a very simple router
@@ -264,17 +266,21 @@ func parseTraefikEntryPoint(entryPoint TraefikEntryPoint) TraefikEntryPoint {
 	portRegexp := regexp.MustCompile(`:(\d+)\/(tcp|udp)`)
 	portMatches := portRegexp.FindStringSubmatch(entryPoint.Address)
 	if portMatches[2] == "tcp" || portMatches[2] == "udp" {
-		entryPoint.Port = portMatches[1]
+		var err error
+		entryPoint.ServicePort, err = GetTraefikPortByName(entryPoint.Name)
+		if err != nil {
+			log.Println(err)
+		}
 		entryPoint.Protocol = portMatches[2]
 	}
-
+	fmt.Printf("Server %s on port %d", entryPoint.Name, entryPoint.ServicePort)
 	return entryPoint
 }
 
 // populizeTraefik initially makes sure that the TraefikEntryPointList
 // and TraefikRouterList are populated at startup (called from main)
 func populizeTraefik(url string) error {
-	err, err2 := errors.New(""), errors.New("")
+	var err, err2 error
 	traefikApiUrl = url
 	TraefikEntryPointList, err2 = getAllTraefikEntryPoints()
 	TraefikRouterList, err = getAllTraefikRouters()
