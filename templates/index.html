@@ -3,15 +3,14 @@
 <!--Embed the header.html template at this location-->
 {{ template "header.html" .}}
 
-  <!--Loop over the `payload` variable, which is the list of articles-->
+  <!--Loop over the `payload` variable, which is the list of traefik routers-->
   {{range .payload }}
-    <!--Create the link for the article based on its ID-->
-    <a href="{{index .URLs 0}}">
-      <!--Display the title of the article -->
-      <h2>{{index .URLs 0}}</h2>
-    </a>
-    <!--Display the content of the article-->
-    <p>{{.Rule}}</p>
+    {{ if ne (index .URLs 0) "Unknown" }}
+      <a href="{{index .URLs 0}}">
+        <h2>{{index .URLs 0}}</h2>
+      </a>
+      <p>{{.Rule}}</p>
+    {{ end }}
   {{end}}
 
 <!--Embed the footer.html template at this location-->
