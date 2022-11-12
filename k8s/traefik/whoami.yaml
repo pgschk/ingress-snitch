@@ -4,7 +4,6 @@ metadata:
   name: whoami
   labels:
     app: whoami
-
 spec:
   replicas: 2
   selector:
@@ -21,6 +20,13 @@ spec:
           ports:
             - name: web
               containerPort: 80
+          resources:
+            requests:
+              cpu: 25m
+              memory: 25Mi
+            limits:
+              cpu: 50m
+              memory: 50Mi
 ---
 apiVersion: v1
 kind: Service
@@ -42,10 +48,10 @@ metadata:
   name: whoami
 spec:
   entryPoints:
-    - websecure
+    - web
   routes:
     - kind: Rule
-      match: (Host(`localhost`) || Host(`whoami`)) && PathPrefix(`/`)
+      match: (Host(`localhost`) || Host(`whoami`)) && PathPrefix(`/whoami`)
       services:
         - name: whoami
           port: 80

@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: snitch
+  namespace: default
+  labels:
+    app: snitch
+spec:
+  containers:
+  - name: snitch
+    image: ingress-snitch:latest
+    imagePullPolicy: Never
+    env:
+    - name: TRAEFIK_API_URL
+      value: "http://traefik.traefik:9000/api"
+    - name: TRAEFIK_NAMESPACE
+      value: traefik
+    - name: TRAEFIK_SERVICE_NAME
+      value: traefik
+    resources:
+      requests:
+        cpu: 20m
+        memory: 20Mi
+      limits:
+        cpu: 100m
+        memory: 50Mi
+  serviceAccountName: snitch
