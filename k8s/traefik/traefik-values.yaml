@@ -12,6 +12,8 @@ logs:
   general:
     level: INFO
 ports:
+  web:
+    exposedPort: 8080
   metrics:
     expose: false
   traefik:

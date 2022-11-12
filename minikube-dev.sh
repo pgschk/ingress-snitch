@@ -41,4 +41,4 @@ sleep 20
 /usr/bin/env bash -c 'sleep 5; open "http://localhost:8080/snitch"'
 
 # Forward Traefik web to localhost:8080
-$KC port-forward -n traefik services/traefik 8080:80
+$KC port-forward -n traefik services/traefik 8080:8080
