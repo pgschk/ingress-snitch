@@ -242,12 +242,17 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	}
 
 	for _, hostname := range ruleHostnames {
+		portStr := ":" + strconv.FormatUint(uint64(entryPointPort), 10)
+		if (entryPointProto == "https://" && entryPointPort == 443) ||
+			(entryPointProto == "http://" && entryPointPort == 80) {
+			portStr = ""
+		}
 		// for each hostname we build an URL using
 		// - the entrypoints protocol (http:// or https://)
 		// - the hostname
 		// - the entryPointPort
 		// - the first matching path
-		router.URLs = append(router.URLs, entryPointProto+hostname+":"+strconv.FormatUint(uint64(entryPointPort), 10)+rulePaths[0])
+		router.URLs = append(router.URLs, entryPointProto+hostname+portStr+rulePaths[0])
 	}
 
 	// if there was no URL generated for this router it is most likely a very simple router
