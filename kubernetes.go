@@ -51,7 +51,6 @@ func GetTraefikService() v1.Service {
 func GetTraefikPortByName(name string) (port uint, err error) {
 	var traefikPort uint
 	for _, port := range TraefikService.Spec.Ports {
-		fmt.Println(port) // TODO: remove debug output
 		if port.TargetPort.StrVal == name {
 			traefikPort = uint(port.Port)
 		}

@@ -197,7 +197,7 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 	}
 
 	if entryPointPort == 0 {
-		log.Printf("Did not find valid EntryPoint port for %s", router.Name)
+		log.Printf("Did not find valid EntryPoint port for %s. Possibly not exposed by Service\n", router.Name)
 	}
 
 	// setup regexp to match Host() and Path() rules from Traefik routers
@@ -278,7 +278,9 @@ func parseTraefikEntryPoint(entryPoint TraefikEntryPoint) TraefikEntryPoint {
 		}
 		entryPoint.Protocol = portMatches[2]
 	}
-	fmt.Printf("Server %s on port %d", entryPoint.Name, entryPoint.ServicePort)
+	if entryPoint.ServicePort != 0 {
+		fmt.Printf("Traefik Service is serving EntryPoint %s on port %d\n", entryPoint.Name, entryPoint.ServicePort)
+	}
 	return entryPoint
 }
 
