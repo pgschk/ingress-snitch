@@ -26,7 +26,8 @@ type TraefikRouter struct {
 	TLS         struct {
 		Options string `json:"options"`
 	} `json:"tls,omitempty"`
-	URLs []string
+	URLs     []string
+	HTMLName string
 }
 
 // struct TraefikEntryPoint represents a Traefik entrypoint
@@ -255,6 +256,10 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 		router.URLs = append(router.URLs, entryPointProto+hostname+portStr+rulePaths[0])
 	}
 
+	// replace characters in the routers Name that are invalid in HTML ids
+	router.HTMLName = sanitizeHTMLName(router.Name)
+	fmt.Println(router.HTMLName)
+
 	// if there was no URL generated for this router it is most likely a very simple router
 	// that we do not have enough information to work with
 	if len(router.URLs) == 0 {
@@ -295,4 +300,10 @@ func populizeTraefik(url string) error {
 		return err
 	}
 	return nil
+}
+
+// sanitizeHTMLName replaces characters that are invalid in HTML ids
+func sanitizeHTMLName(name string) string {
+	HTMLName := strings.ReplaceAll(name, "@", "_")
+	return HTMLName
 }
