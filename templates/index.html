@@ -6,10 +6,32 @@
   <!--Loop over the `payload` variable, which is the list of traefik routers-->
   {{range .payload }}
     {{ if ne (index .URLs 0) "Unknown" }}
-      <a href="{{index .URLs 0}}">
-        <h2>{{index .URLs 0}}</h2>
-      </a>
-      <p>{{.Rule}}</p>
+      <div class="d-flex flex-row">
+        <div class="p-2">
+          <a class="align-middle" href="{{index .URLs 0}}">
+            <h2 class="d-inline">{{index .URLs 0}}</h2>
+          </a>
+        </div>
+        <div class="p-2">
+          <a class="btn btn-primary align-middle" data-bs-toggle="collapse" href="#collapse-{{ .HTMLName }}" role="button" aria-expanded="false" aria-controls="collapse-{{ .HTMLName }}">
+            All URLs
+          </a>
+        </div>
+      </div>
+      <div class="collapse" id="collapse-{{ .HTMLName }}">
+        <div class="card card-body">
+          {{range .URLs }}
+            <div class="m-1">
+              <a class="align-middle" href="{{ . }}">
+                {{ . }}
+              </a>
+            </div>
+          {{ end }}
+          <div class="m-3">
+            Evaluated rule: <span class="text-muted">{{.Rule}}</span>
+          </div>
+        </div>
+      </div>
     {{ end }}
   {{end}}
 
