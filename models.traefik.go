@@ -26,8 +26,10 @@ type TraefikRouter struct {
 	TLS         struct {
 		Options string `json:"options"`
 	} `json:"tls,omitempty"`
-	URLs     []string
-	HTMLName string
+	URLs        []string
+	HTMLName    string
+	ServicePort uint
+	ProtoPrefix string
 }
 
 // struct TraefikEntryPoint represents a Traefik entrypoint
@@ -163,113 +165,41 @@ func getAllTraefikEntryPoints() ([]TraefikEntryPoint, error) {
 
 // parseTraefikRouterUrls parses the rules in the Traefik router to
 // interpret the URL they represent
-func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
-	var ruleHostnames []string
-	var rulePaths []string
-	rule := router.Rule
+func parseTraefikRouterUrls(traefikRouter TraefikRouter) TraefikRouter {
+	rule := traefikRouter.Rule
 
-	var entryPointPort uint
-	entryPointProto := "http://"
+	// Set the EntryPoints ServicePort and ProtoPrefix
+	setEntryPointSpecsForRouter(&traefikRouter)
 
-	for _, routerEntryPointName := range router.EntryPoints {
-
-		// retrieve the EntryPoint associated with this router
-		entryPoint, err := getTraefikEntryPointByName(routerEntryPointName)
-		if err != nil {
-			log.Printf("Router %s uses unknown Entrypoint: %s\n", router.Name, routerEntryPointName)
-			continue
-		}
-
-		// ignore routers that don't use tcp for now
-		// HTTP3 might be a problem here
-		if entryPoint.Protocol == "tcp" {
-			// set the port to use to this entrypoints port
-			// this is often wrong, as a Kubernetes service
-			// will do port translation
-			entryPointPort = entryPoint.ServicePort
-
-			// if there is TLS configuration associated with
-			// this entrypoint, set the entrypoint url prefix to https://
-			if entryPoint.HTTP.TLS != nil {
-				fmt.Printf("%s is a HTTPS endpoint!\n", entryPoint.Name) // TODO: remove debug output
-				entryPointProto = "https://"
-			}
-		}
+	if traefikRouter.ServicePort == 0 {
+		log.Printf("Did not find valid EntryPoint port for %s. Possibly not exposed by Service\n", traefikRouter.Name)
 	}
 
-	if entryPointPort == 0 {
-		log.Printf("Did not find valid EntryPoint port for %s. Possibly not exposed by Service\n", router.Name)
-	}
-
-	// setup regexp to match Host() and Path() rules from Traefik routers
-	hostRegexp := regexp.MustCompile(`Host\(\s*\140([^\051]*)`)
-	pathRegexp := regexp.MustCompile(`Path(?:Prefix)?\(\140([^\140]*)\140\)`)
-
-	// find matches in current router rules
-	hostMatches := hostRegexp.FindAllStringSubmatch(rule, -1)
-	pathMatches := pathRegexp.FindAllStringSubmatch(rule, -1)
-
-	// for all host matches, do some cleanup
-	for _, hostRules := range hostMatches {
-		for i, match := range hostRules {
-			if i == 0 || match == "" {
-				// the first and any matches
-				continue
-			}
-
-			// replace all spaces to normalize
-			match = strings.ReplaceAll(match, " ", "")
-			// replace all backticks to normalize
-			match = strings.ReplaceAll(match, "`", "")
-			// replace all linebreaks to normalize
-			match = strings.ReplaceAll(match, "\n", "")
-
-			// split match but either comma or two pipes, seperating
-			// all hostname used in the rule
-			splitRegexp := regexp.MustCompile(`\174{2}|,`)
-			hostnames := splitRegexp.Split(match, -1)
-
-			// append all to ruleHostnames matching this group of matches
-			ruleHostnames = append(ruleHostnames, hostnames...)
-		}
-	}
-
-	// add all path matches to the list rulePaths
-	for _, pathRules := range pathMatches {
-		rulePaths = append(rulePaths, pathRules[1])
-	}
-
-	// if no paths found in rule, we add "/" as a path
-	if len(rulePaths) == 0 {
-		rulePaths = append(rulePaths, "/")
-	}
+	ruleHostnames := getHostnameMatches(rule)
+	rulePaths := getPathMatches(rule)
 
 	for _, hostname := range ruleHostnames {
-		portStr := ":" + strconv.FormatUint(uint64(entryPointPort), 10)
-		if (entryPointProto == "https://" && entryPointPort == 443) ||
-			(entryPointProto == "http://" && entryPointPort == 80) {
-			portStr = ""
-		}
+		portStr := getPortString(&traefikRouter)
 		// for each hostname we build an URL using
 		// - the entrypoints protocol (http:// or https://)
 		// - the hostname
-		// - the entryPointPort
+		// - the ServicePort
 		// - the first matching path
-		router.URLs = append(router.URLs, entryPointProto+hostname+portStr+rulePaths[0])
+		traefikRouter.URLs = append(traefikRouter.URLs, traefikRouter.ProtoPrefix+hostname+portStr+rulePaths[0])
 	}
 
 	// replace characters in the routers Name that are invalid in HTML ids
-	router.HTMLName = sanitizeHTMLName(router.Name)
-	fmt.Println(router.HTMLName)
+	traefikRouter.HTMLName = sanitizeHTMLName(traefikRouter.Name)
+	fmt.Println(traefikRouter.HTMLName)
 
 	// if there was no URL generated for this router it is most likely a very simple router
 	// that we do not have enough information to work with
-	if len(router.URLs) == 0 {
-		router.URLs = append(router.URLs, "Unknown")
+	if len(traefikRouter.URLs) == 0 {
+		traefikRouter.URLs = append(traefikRouter.URLs, "Unknown")
 	}
 
-	fmt.Println(router.URLs) // TODO: remove debug output
-	return router
+	fmt.Println(traefikRouter.URLs) // TODO: remove debug output
+	return traefikRouter
 }
 
 // parseTraefikEntryPoint parses the a TraefikEntryPoint
@@ -308,4 +238,110 @@ func populizeTraefik(url string) error {
 func sanitizeHTMLName(name string) string {
 	HTMLName := strings.ReplaceAll(name, "@", "_")
 	return HTMLName
+}
+
+// sanitizeTraefikRule normalizes a matched Traefik Rule
+// to make it easier to parse
+func sanitizeTraefikRule(rule string) string {
+	// replace all spaces to normalize
+	rule = strings.ReplaceAll(rule, " ", "")
+	// replace all backticks to normalize
+	rule = strings.ReplaceAll(rule, "`", "")
+	// replace all linebreaks to normalize
+	rule = strings.ReplaceAll(rule, "\n", "")
+	return rule
+}
+
+// setEntryPointSpecsForRouter returns the port and protocol for the EntryPoint
+func setEntryPointSpecsForRouter(traefikRouter *TraefikRouter) {
+	traefikRouter.ProtoPrefix = "http://"
+	for _, routerEntryPointName := range traefikRouter.EntryPoints {
+
+		// retrieve the EntryPoint associated with this router
+		entryPoint, err := getTraefikEntryPointByName(routerEntryPointName)
+		if err != nil {
+			log.Printf("Router %s uses unknown Entrypoint: %s\n", traefikRouter.Name, routerEntryPointName)
+			continue
+		}
+
+		// ignore routers that don't use tcp for now
+		// HTTP3 might be a problem here
+		if entryPoint.Protocol == "tcp" {
+			// set the port to use to this entrypoints port
+			// this is often wrong, as a Kubernetes service
+			// will do port translation
+			traefikRouter.ServicePort = entryPoint.ServicePort
+
+			// if there is TLS configuration associated with
+			// this entrypoint, set the entrypoint url prefix to https://
+			if entryPoint.HTTP.TLS != nil {
+				fmt.Printf("%s is a HTTPS endpoint!\n", entryPoint.Name) // TODO: remove debug output
+				traefikRouter.ProtoPrefix = "https://"
+			}
+		}
+	}
+}
+
+// getPortString compiles a string to be used as port in an URL based on protocol and port
+func getPortString(traefikRouter *TraefikRouter) string {
+	portStr := ":" + strconv.FormatUint(uint64(traefikRouter.ServicePort), 10)
+	if (traefikRouter.ProtoPrefix == "https://" && traefikRouter.ServicePort == 443) ||
+		(traefikRouter.ProtoPrefix == "http://" && traefikRouter.ServicePort == 80) {
+		portStr = ""
+	}
+	return portStr
+}
+
+// getHostnameMatches parses the Rule to extract hostnames
+func getHostnameMatches(rule string) []string {
+	var ruleHostnames []string
+	// setup regexp to match Host() and Path() rules from Traefik routers
+	hostRegexp := regexp.MustCompile(`Host\(\s*\140([^\051]*)`)
+
+	// find matches in current router rules
+	hostMatches := hostRegexp.FindAllStringSubmatch(rule, -1)
+
+	// for all host matches, do some cleanup
+	for _, hostRules := range hostMatches {
+		for i, match := range hostRules {
+			if i == 0 || match == "" {
+				// skip the first and empty matches
+				continue
+			}
+
+			// normalize and sanitize rule
+			match = sanitizeTraefikRule(match)
+
+			// split match but either comma or two pipes, seperating
+			// all hostname used in the rule
+			splitRegexp := regexp.MustCompile(`\174{2}|,`)
+			hostnames := splitRegexp.Split(match, -1)
+
+			// append all to ruleHostnames matching this group of matches
+			ruleHostnames = append(ruleHostnames, hostnames...)
+		}
+	}
+	return ruleHostnames
+}
+
+// getPathMatches extracts the paths from rules
+func getPathMatches(rule string) []string {
+	var rulePaths []string
+	// setup regexp to match Host() and Path() rules from Traefik routers
+	pathRegexp := regexp.MustCompile(`Path(?:Prefix)?\(\140([^\140]*)\140\)`)
+
+	// find matches in current router rules
+	pathMatches := pathRegexp.FindAllStringSubmatch(rule, -1)
+
+	// add all path matches to the list rulePaths
+	for _, pathRules := range pathMatches {
+		rulePaths = append(rulePaths, pathRules[1])
+	}
+
+	// if no paths found in rule, we add "/" as a path
+	if len(rulePaths) == 0 {
+		rulePaths = append(rulePaths, "/")
+	}
+
+	return rulePaths
 }
