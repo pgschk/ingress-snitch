@@ -221,6 +221,8 @@ func parseTraefikRouterUrls(router TraefikRouter) TraefikRouter {
 			match = strings.ReplaceAll(match, " ", "")
 			// replace all backticks to normalize
 			match = strings.ReplaceAll(match, "`", "")
+			// replace all linebreaks to normalize
+			match = strings.ReplaceAll(match, "\n", "")
 
 			// split match but either comma or two pipes, seperating
 			// all hostname used in the rule
